@@ -119,6 +119,12 @@ export default function ResultsPage() {
     }
 
     loadOverview();
+
+    const interval = setInterval(loadOverview, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
