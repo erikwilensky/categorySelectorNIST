@@ -17,6 +17,7 @@ interface FactorAggregate {
   selectionCount: number;
   averageRank: number | null;
   averageStrength: number | null;
+  averageScore: number | null;
   consensus: "high" | "mixed" | "low";
 }
 
@@ -63,6 +64,11 @@ export default function ResultsPage() {
   const strongestApplied = [...aggregates]
     .filter((f) => f.averageStrength != null)
     .sort((a, b) => (b.averageStrength ?? 0) - (a.averageStrength ?? 0))
+    .slice(0, 10);
+
+  const topByScore = [...aggregates]
+    .filter((f) => f.averageScore != null)
+    .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
     .slice(0, 10);
 
   return (
@@ -157,6 +163,45 @@ export default function ResultsPage() {
 
       <section className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
         <h3 className="text-sm font-semibold text-slate-900">
+          Top Factors by Average Points
+        </h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Combines how high factors sit in stacks and how strongly they are
+          applied.
+        </p>
+        <div className="h-64">
+          {loading ? (
+            <p className="text-xs text-slate-500">Loading…</p>
+          ) : topByScore.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              Results will appear as participants finalize.
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={topByScore}
+                margin={{ top: 4, right: 8, left: 0, bottom: 40 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="factorName"
+                  angle={-35}
+                  textAnchor="end"
+                  interval={0}
+                  height={60}
+                  tick={{ fontSize: 10 }}
+                />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Bar dataKey="averageScore" fill="#7c3aed" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
+        <h3 className="text-sm font-semibold text-slate-900">
           Consensus Table
         </h3>
         <p className="mb-3 text-xs text-slate-500">
@@ -178,6 +223,9 @@ export default function ResultsPage() {
                   Avg. Strength
                 </th>
                 <th className="px-2 py-1 font-medium text-right">
+                  Avg. Points
+                </th>
+                <th className="px-2 py-1 font-medium text-right">
                   Consensus
                 </th>
               </tr>
@@ -197,6 +245,9 @@ export default function ResultsPage() {
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {f.averageStrength ?? "—"}
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    {f.averageScore ? f.averageScore.toFixed(1) : "—"}
                   </td>
                   <td className="px-2 py-1.5 text-right capitalize">
                     {f.consensus}
