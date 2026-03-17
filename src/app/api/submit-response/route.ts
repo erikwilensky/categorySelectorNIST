@@ -10,72 +10,49 @@ export async function POST(request: Request) {
         stackPosition: number;
         strengthValue: number;
       }[];
+      honorableFactorIds?: string[];
     };
 
     const supabase = createSupabaseClient();
 
-    // Either create a new response or reuse an existing one for this anonymous token.
-    const { data: existing, error: existingError } = await supabase
-      .from("responses")
-      .select("id")
-      .eq("anonymous_token", body.anonymousToken)
-      .single();
+    // Always create a NEW finalized response record so each submission is counted.
+    // Because anonymous_token is unique, we add a suffix when needed.
+    let responseId: string | null = null;
+    const baseToken = body.anonymousToken || "anonymous";
+    const candidateTokens = [baseToken, `${baseToken}-${crypto.randomUUID()}`];
+    let tokenUsed: string | null = null;
 
-    if (existingError && existingError.code !== "PGRST116") {
-      console.error("Failed to look up existing response", existingError);
-      return NextResponse.json(
-        { error: "Failed to look up existing response", details: existingError },
-        { status: 500 }
-      );
-    }
-
-    let responseId: string;
-
-    if (existing && existing.id) {
-      responseId = existing.id as string;
-      const { error: updateError } = await supabase
-        .from("responses")
-        .update({ finalized: true, updated_at: new Date().toISOString() })
-        .eq("id", responseId);
-      if (updateError) {
-        console.error("Failed to update existing response", updateError);
-        return NextResponse.json(
-          { error: "Failed to update existing response", details: updateError },
-          { status: 500 }
-        );
-      }
-      const { error: deleteItemsError } = await supabase
-        .from("response_items")
-        .delete()
-        .eq("response_id", responseId);
-      if (deleteItemsError) {
-        console.error("Failed to clear existing response items", deleteItemsError);
-        return NextResponse.json(
-          {
-            error: "Failed to clear existing response items",
-            details: deleteItemsError
-          },
-          { status: 500 }
-        );
-      }
-    } else {
+    let createError: any = null;
+    for (const anonymousToken of candidateTokens) {
       const { data: response, error: responseError } = await supabase
         .from("responses")
         .insert({
-          anonymous_token: body.anonymousToken,
+          anonymous_token: anonymousToken,
           finalized: true
         })
         .select("id")
         .single();
 
-      if (responseError || !response) {
-        console.error("Failed to create response", responseError);
-        return NextResponse.json(
-          { error: "Failed to create response", details: responseError },
-          { status: 500 }
-        );
+      if (!responseError && response) {
+        responseId = response.id as string;
+        tokenUsed = anonymousToken;
+        createError = null;
+        break;
       }
-      responseId = response.id as string;
+
+      createError = responseError;
+      if (responseError?.code !== "23505") {
+        // Not a duplicate token issue, stop retrying.
+        break;
+      }
+    }
+
+    if (!responseId) {
+      console.error("Failed to create response", createError);
+      return NextResponse.json(
+        { error: "Failed to create response", details: createError },
+        { status: 500 }
+      );
     }
 
     const itemsPayload = body.items.map((item) => ({
@@ -97,7 +74,34 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true });
+    const honorableIds = Array.isArray(body.honorableFactorIds)
+      ? body.honorableFactorIds.filter((id) => typeof id === "string")
+      : [];
+
+    if (honorableIds.length > 0) {
+      const honorablePayload = honorableIds.map((factorId) => ({
+        response_id: responseId,
+        factor_id: factorId
+      }));
+      const { error: honorableError } = await supabase
+        .from("response_honorable_items")
+        .insert(honorablePayload);
+      if (honorableError) {
+        console.error(
+          "Failed to create honorable response items",
+          honorableError
+        );
+        return NextResponse.json(
+          {
+            error: "Failed to create honorable response items",
+            details: honorableError
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    return NextResponse.json({ ok: true, responseId, tokenUsed });
   } catch (error) {
     console.error("Unexpected error in submit-response", error);
     return NextResponse.json(

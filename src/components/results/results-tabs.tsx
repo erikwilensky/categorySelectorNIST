@@ -7,6 +7,7 @@ interface ResultsTabsProps {
     | "responses"
     | "query"
     | "cooccurrence"
+    | "honorable"
     | "exports";
   onChange: (tab: ResultsTabsProps["activeTab"]) => void;
 }
@@ -17,6 +18,7 @@ const tabs: { id: ResultsTabsProps["activeTab"]; label: string }[] = [
   { id: "responses", label: "Response explorer" },
   { id: "query", label: "Query / cross-analysis" },
   { id: "cooccurrence", label: "Co-occurrence" },
+  { id: "honorable", label: "Honorable mentions" },
   { id: "exports", label: "Exports" }
 ];
 

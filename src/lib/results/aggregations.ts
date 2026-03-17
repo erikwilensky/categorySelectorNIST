@@ -7,7 +7,8 @@ import {
 import type {
   FactorAggregate,
   ResponseDetailItem,
-  ResponseSummary
+  ResponseSummary,
+  HonorableAggregate
 } from "./types";
 
 export async function fetchFinalizedResponseItems() {
@@ -21,18 +22,40 @@ export async function fetchFinalizedResponseItems() {
       stack_position,
       strength_value,
       factor_id,
-      responses!inner(id, finalized, created_at),
-      factors!inner(id, name, category, description, is_active)
+      responses!inner(id, finalized, created_at)
     `
     )
     .eq("responses.finalized", true)
-    .eq("factors.is_active", true);
+    .order("created_at", { ascending: true });
 
   if (itemsError || !items) {
     throw itemsError ?? new Error("Failed to fetch response items");
   }
 
   return items as any[];
+}
+
+export async function fetchHonorableItems() {
+  const supabase = createSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("response_honorable_items")
+    .select(
+      `
+      response_id,
+      factor_id,
+      responses!inner(id, finalized),
+      factors!inner(id, name, category, is_active)
+    `
+    )
+    .eq("responses.finalized", true)
+    .eq("factors.is_active", true);
+
+  if (error || !data) {
+    throw error ?? new Error("Failed to fetch honorable items");
+  }
+
+  return data as any[];
 }
 
 export async function fetchActiveFactors() {
@@ -72,6 +95,10 @@ export function buildFactorAggregates(
   items: any[],
   factors: any[]
 ): FactorAggregate[] {
+  const factorById = new Map<string, any>();
+  for (const f of factors) {
+    factorById.set(f.id as string, f);
+  }
   const byFactor: Record<
     string,
     {
@@ -94,11 +121,11 @@ export function buildFactorAggregates(
   >();
 
   for (const item of items as any[]) {
-    const factor = item.factors;
     const response = item.responses;
+    const factorId = item.factor_id as string;
+    const factor = factorById.get(factorId);
     if (!factor || !response) continue;
 
-    const factorId = factor.id as string;
     const stackPosition = item.stack_position as number;
     const strengthValue = item.strength_value as number;
     const itemScore = computeFactorScore(stackPosition, strengthValue);
@@ -263,6 +290,49 @@ export function buildResponseSummaries(
       rigidityScore: null
     };
   });
+}
+
+export function buildHonorableAggregates(
+  honorableItems: any[],
+  factors: any[]
+): HonorableAggregate[] {
+  const factorById = new Map<string, any>();
+  for (const f of factors) {
+    factorById.set(f.id as string, f);
+  }
+
+  const countsByFactorId = new Map<string, number>();
+  const responsesById = new Map<string, true>();
+
+  for (const row of honorableItems as any[]) {
+    const factorId = row.factor_id as string;
+    const response = row.responses;
+    const factor = factorById.get(factorId);
+    if (!factor || !response) continue;
+
+    countsByFactorId.set(
+      factorId,
+      (countsByFactorId.get(factorId) ?? 0) + 1
+    );
+    responsesById.set(response.id as string, true);
+  }
+
+  const totalResponses = responsesById.size || 1;
+
+  const aggregates: HonorableAggregate[] = [];
+  for (const [factorId, count] of countsByFactorId.entries()) {
+    const factor = factorById.get(factorId);
+    if (!factor) continue;
+    aggregates.push({
+      factorId,
+      factorName: factor.name as string,
+      category: factor.category as "core" | "secondary" | "blue_sky",
+      honorableCount: count,
+      honorableSelectionPercentage: (count / totalResponses) * 100
+    });
+  }
+
+  return aggregates;
 }
 
 export function buildOverviewMetrics(

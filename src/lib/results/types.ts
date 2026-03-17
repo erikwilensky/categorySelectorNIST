@@ -55,6 +55,14 @@ export interface ResponseDetailItem {
   itemScore: number;
 }
 
+export interface HonorableAggregate {
+  factorId: string;
+  factorName: string;
+  category: "core" | "secondary" | "blue_sky";
+  honorableCount: number;
+  honorableSelectionPercentage: number;
+}
+
 export interface CooccurrenceRow {
   factorAId: string;
   factorAName: string;

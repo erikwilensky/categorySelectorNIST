@@ -25,6 +25,7 @@ interface FactorOption {
 interface PriorityItem {
   factorId: string;
   factorName: string;
+  category?: FactorCategory;
   strength?: StrengthValue;
 }
 
@@ -141,7 +142,7 @@ export default function BuilderPage() {
     if (priorityItems.some((p) => p.factorId === factor.id)) return;
     setPriorityItems((prev) => [
       ...prev,
-      { factorId: factor.id, factorName: factor.name }
+      { factorId: factor.id, factorName: factor.name, category: factor.category }
     ]);
   }
 
@@ -154,7 +155,11 @@ export default function BuilderPage() {
     }
     setHonorableItems((prev) => [
       ...prev,
-      { factorId: factor.id, factorName: factor.name }
+      {
+        factorId: factor.id,
+        factorName: factor.name,
+        category: factor.category
+      }
     ]);
   }
 
@@ -170,7 +175,15 @@ export default function BuilderPage() {
     const item = honorableItems.find((h) => h.factorId === id);
     if (!item) return;
     setHonorableItems((prev) => prev.filter((p) => p.factorId !== id));
-    setPriorityItems((prev) => [...prev, { ...item, strength: undefined }]);
+    setPriorityItems((prev) => [
+      ...prev,
+      {
+        factorId: item.factorId,
+        factorName: item.factorName,
+        category: item.category,
+        strength: undefined
+      }
+    ]);
   }
 
   function handleMoveStackToHonorable(id: string) {
@@ -179,7 +192,11 @@ export default function BuilderPage() {
     setPriorityItems((prev) => prev.filter((p) => p.factorId !== id));
     setHonorableItems((prev) => [
       ...prev,
-      { factorId: item.factorId, factorName: item.factorName }
+      {
+        factorId: item.factorId,
+        factorName: item.factorName,
+        category: item.category
+      }
     ]);
   }
 
@@ -235,13 +252,15 @@ export default function BuilderPage() {
         stackPosition: index + 1,
         strengthValue: item.strength as number
       }));
+      const honorableFactorIds = honorableItems.map((item) => item.factorId);
 
       await fetch("/api/submit-response", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           anonymousToken,
-          items: itemsWithIds
+          items: itemsWithIds,
+          honorableFactorIds
         })
       });
       if (typeof window !== "undefined") {
@@ -449,9 +468,22 @@ interface FactorGroupProps {
 function FactorGroup({ title, items, onAdd, onAddHonorable }: FactorGroupProps) {
   if (items.length === 0) return null;
 
+  const borderBgClass =
+    title === "Core Factors"
+      ? "border-[#002855]/50 bg-[#F4F7FB]"
+      : title === "Secondary Factors"
+      ? "border-[#4F529B]/40 bg-[#F4F7FB]"
+      : "border-[#78D5E1]/40 bg-[#E7F6F9]";
+  const pillClass =
+    title === "Core Factors"
+      ? "bg-[#002855]"
+      : title === "Secondary Factors"
+      ? "bg-[#4F529B]"
+      : "bg-[#78D5E1]";
+
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-[#4F529B]">
+      <h4 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#002855]">
         {title}
       </h4>
       <div className="mt-2 space-y-1.5">
@@ -467,11 +499,19 @@ function FactorGroup({ title, items, onAdd, onAddHonorable }: FactorGroupProps) 
                 onAdd(factor);
               }
             }}
-            className="flex w-full items-center justify-between rounded-md border border-[#4F529B]/60 bg-white px-3 py-2 text-left text-xs text-[#333333] outline-none transition hover:border-[#002855] hover:bg-[#F4F7FB] focus-visible:ring-2 focus-visible:ring-[#FF8F1C]"
+            className={
+              "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-xs text-[#333333] outline-none transition hover:border-[#002855] hover:bg-[#F4F7FB] focus-visible:ring-2 focus-visible:ring-[#FF8F1C] " +
+              borderBgClass
+            }
           >
             <span>{factor.name}</span>
             <span className="flex gap-2">
-              <span className="inline-flex h-8 items-center rounded-full bg-[#002855] px-3 text-[10px] font-semibold text-white whitespace-nowrap">
+              <span
+                className={
+                  "inline-flex h-8 items-center rounded-full px-3 text-[10px] font-semibold text-white whitespace-nowrap " +
+                  pillClass
+                }
+              >
                 Add to stack
               </span>
               <button
@@ -538,19 +578,49 @@ function PriorityRow({
   ];
 
   const score = computeFactorScore(index + 1, item.strength);
+  const widthPercent = Math.max(60, 100 - index * 4);
+  const stackBorderBgClass =
+    item.category === "core"
+      ? "border-[#002855]/60 bg-[#F4F7FB]"
+      : item.category === "secondary"
+      ? "border-[#4F529B]/60 bg-[#F4F7FB]"
+      : item.category === "blue_sky"
+      ? "border-[#78D5E1]/60 bg-[#E7F6F9]"
+      : "border-[#4F529B]/60 bg-white";
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-[#4F529B]/60 bg-white px-3 py-2">
-      <div
-        className="mt-1 cursor-grab text-xs font-semibold text-[#4F529B]"
-        {...dragHandleProps}
-      >
-        {index + 1}
+    <div
+      className={
+        "flex items-start gap-3 rounded-lg border px-3 py-2 " +
+        stackBorderBgClass
+      }
+      style={{
+        maxWidth: `${widthPercent}%`,
+        marginLeft: "auto",
+        marginRight: "auto"
+      }}
+    >
+      <div className="flex flex-col items-center gap-1">
+        <div
+          className="mt-1 cursor-grab text-[#4F529B]"
+          {...dragHandleProps}
+          aria-label="Drag to reorder"
+        >
+          <span className="inline-block text-lg leading-none">☰</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onRemove(item.factorId)}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#E73C3E]/60 text-xs font-semibold text-[#E73C3E] hover:bg-[#FFF1F2]"
+          aria-label="Remove factor"
+        >
+          ×
+        </button>
       </div>
       <div className="flex-1 space-y-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col">
-            <p className="text-xs font-medium text-[#002855]">
+            <p className="text-sm font-semibold tracking-tight text-[#002855]">
               {item.factorName}
             </p>
             {score > 0 ? (
@@ -559,13 +629,6 @@ function PriorityRow({
               </p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => onRemove(item.factorId)}
-            className="text-[11px] font-medium text-[#4F529B] hover:text-[#002855]"
-          >
-            Remove
-          </button>
           <button
             type="button"
             onClick={() => onMoveToHonorable(item.factorId)}

@@ -18,6 +18,7 @@ import { CooccurrenceTable } from "@/components/results/cooccurrence-table";
 import { ExportPanel } from "@/components/results/export-panel";
 import { ResultsFilterBar } from "@/components/results/results-filter-bar";
 import { QuerySummary } from "@/components/results/query-summary";
+import { HonorableTable } from "@/components/results/honorable-table";
 
 interface FactorAggregate {
   factorId: string;
@@ -41,7 +42,9 @@ export default function ResultsPage() {
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [overviewMetrics, setOverviewMetrics] = useState<any | null>(null);
   const [responses, setResponses] = useState<any[]>([]);
+  const [responsesError, setResponsesError] = useState<string | null>(null);
   const [coRows, setCoRows] = useState<any[]>([]);
+  const [honorableRows, setHonorableRows] = useState<any[]>([]);
   const [minSelections, setMinSelections] = useState<number>(0);
   const [consensusFilter, setConsensusFilter] = useState<
     "all" | FactorAggregate["consensusLabel"]
@@ -52,7 +55,13 @@ export default function ResultsPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [showHowToRead, setShowHowToRead] = useState(true);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "factors" | "responses" | "query" | "cooccurrence" | "exports"
+    | "overview"
+    | "factors"
+    | "responses"
+    | "query"
+    | "cooccurrence"
+    | "honorable"
+    | "exports"
   >("overview");
   const [search, setSearch] = useState("");
 
@@ -118,11 +127,27 @@ export default function ResultsPage() {
     async function loadResponses() {
       try {
         const res = await fetch("/api/results/responses");
-        if (!res.ok) throw new Error("Failed to load responses");
-        const json = (await res.json()) as { responses: any[] };
-        if (!cancelled) setResponses(json.responses);
-      } catch {
-        if (!cancelled) setResponses([]);
+        const json = (await res.json()) as {
+          responses: any[];
+          error?: string;
+          warning?: string;
+        };
+        if (!res.ok) {
+          throw new Error(json.error ?? "Failed to load response data");
+        }
+        if (!cancelled) {
+          setResponses(json.responses ?? []);
+          setResponsesError(json.warning ?? null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setResponses([]);
+          setResponsesError(
+            error instanceof Error
+              ? error.message
+              : "Failed to load response data"
+          );
+        }
       }
     }
 
@@ -137,8 +162,31 @@ export default function ResultsPage() {
       }
     }
 
+    async function loadHonorable() {
+      try {
+        const res = await fetch("/api/results/honorable");
+        if (!res.ok) throw new Error("Failed to load honorable mentions");
+        const json = (await res.json()) as { factors: any[] };
+        if (!cancelled) setHonorableRows(json.factors ?? []);
+      } catch {
+        if (!cancelled) setHonorableRows([]);
+      }
+    }
+
     loadResponses();
     loadCooccurrence();
+    loadHonorable();
+
+    const interval = setInterval(() => {
+      loadResponses();
+      loadCooccurrence();
+      loadHonorable();
+    }, 8000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const mostSelected = [...aggregates]
@@ -265,6 +313,17 @@ export default function ResultsPage() {
               )}
               {activeTab === "exports" && (
                 <>
+              {activeTab === "honorable" && (
+                <>
+                  <p>
+                    This view shows how often each factor is added as an{" "}
+                    <span className="font-semibold">Honorable mention</span>.
+                    These selections are zero-points and do not affect scores,
+                    but they highlight factors people care about beyond the
+                    main stack.
+                  </p>
+                </>
+              )}
                   <p>
                     Exports give you CSV files that can be opened in spreadsheets
                     or BI tools. Each file uses human-readable headers and the
@@ -499,6 +558,70 @@ export default function ResultsPage() {
             Detailed view of factor metrics with the same filters and sorting
             applied as above.
           </p>
+          <div className="mb-3 flex flex-wrap gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-[#4F529B]">
+                Min. selections
+              </label>
+              <select
+                value={minSelections}
+                onChange={(e) => setMinSelections(Number(e.target.value))}
+                className="h-8 rounded-md border border-[#4F529B]/60 bg-white px-2 text-xs text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#FF8F1C]"
+              >
+                <option value={0}>All factors</option>
+                <option value={3}>3+ selections</option>
+                <option value={5}>5+ selections</option>
+                <option value={10}>10+ selections</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-[#4F529B]">
+                Consensus
+              </label>
+              <select
+                value={consensusFilter}
+                onChange={(e) =>
+                  setConsensusFilter(e.target.value as typeof consensusFilter)
+                }
+                className="h-8 rounded-md border border-[#4F529B]/60 bg-white px-2 text-xs text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#FF8F1C]"
+              >
+                <option value="all">All levels</option>
+                <option value="Strong consensus">Strong consensus only</option>
+                <option value="Moderate consensus">Moderate consensus only</option>
+                <option value="Mixed views">Mixed views only</option>
+                <option value="Polarizing">Polarizing only</option>
+                <option value="Low support">Low support only</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-[#4F529B]">
+                Table sort by
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortKey}
+                  onChange={(e) =>
+                    setSortKey(e.target.value as typeof sortKey)
+                  }
+                  className="h-8 rounded-md border border-[#4F529B]/60 bg-white px-2 text-xs text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#FF8F1C]"
+                >
+                  <option value="selectionCount">Selections</option>
+                  <option value="averageRank">Avg. Rank</option>
+                  <option value="averageStrength">Avg. Strength</option>
+                  <option value="averagePoints">Avg. Points</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+                  }
+                  className="inline-flex h-8 items-center rounded-md border border-[#4F529B]/60 px-2 text-[11px] font-medium text-[#4F529B] hover:border-[#002855] hover:text-[#002855]"
+                >
+                  {sortDirection === "asc" ? "Asc" : "Desc"}
+                </button>
+              </div>
+            </div>
+          </div>
           <FactorSummaryTable rows={sortedForTable} />
         </section>
       )}
@@ -512,6 +635,11 @@ export default function ResultsPage() {
             Anonymous view of each finalized stack, including number of
             factors, top factors, and total points used.
           </p>
+          {responsesError ? (
+            <p className="mb-2 text-xs font-medium text-[#E73C3E]">
+              {responsesError}
+            </p>
+          ) : null}
           <ResponseExplorerTable rows={responses} />
         </section>
       )}
@@ -525,6 +653,20 @@ export default function ResultsPage() {
             See which factors tend to appear together within the same stacks.
           </p>
           <CooccurrenceTable rows={coRows} />
+        </section>
+      )}
+
+      {activeTab === "honorable" && (
+        <section className="rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
+          <h3 className="text-sm font-semibold text-[#002855]">
+            Honorable mentions
+          </h3>
+          <p className="mb-3 text-xs text-[#4F529B]">
+            Factors that participants added to the Honorable mentions list
+            without spending points. These do not affect scoring but show which
+            ideas people still want visible.
+          </p>
+          <HonorableTable rows={honorableRows} />
         </section>
       )}
 
