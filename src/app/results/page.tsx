@@ -311,8 +311,6 @@ export default function ResultsPage() {
                   </p>
                 </>
               )}
-              {activeTab === "exports" && (
-                <>
               {activeTab === "honorable" && (
                 <>
                   <p>
@@ -324,6 +322,8 @@ export default function ResultsPage() {
                   </p>
                 </>
               )}
+              {activeTab === "exports" && (
+                <>
                   <p>
                     Exports give you CSV files that can be opened in spreadsheets
                     or BI tools. Each file uses human-readable headers and the
