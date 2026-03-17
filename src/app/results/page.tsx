@@ -78,9 +78,9 @@ export default function ResultsPage() {
         if (search) params.set("search", search);
         params.set("sortKey", sortKey);
         params.set("sortDirection", sortDirection);
-        const res = await fetch(
-          `/api/results/factors?${params.toString()}`
-        );
+        const res = await fetch(`/api/results/factors?${params.toString()}`, {
+          cache: "no-store"
+        });
         if (!res.ok) throw new Error("Failed to load results");
         const json = (await res.json()) as { factors: FactorAggregate[] };
         if (!cancelled) {
@@ -107,7 +107,7 @@ export default function ResultsPage() {
 
     async function loadOverview() {
       try {
-        const res = await fetch("/api/results/overview");
+        const res = await fetch("/api/results/overview", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load overview");
         const json = (await res.json()) as { overview: any };
         if (!cancelled) setOverviewMetrics(json.overview);
@@ -132,7 +132,7 @@ export default function ResultsPage() {
 
     async function loadResponses() {
       try {
-        const res = await fetch("/api/results/responses");
+        const res = await fetch("/api/results/responses", { cache: "no-store" });
         const json = (await res.json()) as {
           responses: any[];
           error?: string;
@@ -159,7 +159,9 @@ export default function ResultsPage() {
 
     async function loadCooccurrence() {
       try {
-        const res = await fetch("/api/results/cooccurrence");
+        const res = await fetch("/api/results/cooccurrence", {
+          cache: "no-store"
+        });
         if (!res.ok) throw new Error("Failed to load co-occurrence");
         const json = (await res.json()) as { rows: any[] };
         if (!cancelled) setCoRows(json.rows);
@@ -170,7 +172,7 @@ export default function ResultsPage() {
 
     async function loadHonorable() {
       try {
-        const res = await fetch("/api/results/honorable");
+        const res = await fetch("/api/results/honorable", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load honorable mentions");
         const json = (await res.json()) as { factors: any[] };
         if (!cancelled) setHonorableRows(json.factors ?? []);

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { buildCooccurrenceMatrix } from "@/lib/results/cooccurrence";
 import { fetchActiveFactors, fetchFinalizedResponseItems } from "@/lib/results/aggregations";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
