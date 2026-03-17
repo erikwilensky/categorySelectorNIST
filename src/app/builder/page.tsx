@@ -259,30 +259,31 @@ export default function BuilderPage() {
   return (
     <div className="flex h-full flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold tracking-tight">
-          Build your placement priorities
+        <h2 className="text-lg font-semibold tracking-tight text-[#002855]">
+          Build your class placement stack
         </h2>
-        <p className="text-sm text-slate-600">
-          Drag any factors you think should matter. Order them by importance,
-          choose how strongly each should apply, and stay within your points
-          budget.
+        <p className="text-sm text-[#333333]">
+          Drag any factors you believe should guide class placements. Order
+          them by importance, choose how strongly each should apply, and stay
+          within the points budget so your stack can be included in the
+          aggregated results that will inform which factors are considered.
         </p>
       </div>
 
       <div className="grid flex-1 gap-6 md:grid-cols-2">
-        <section className="flex flex-col rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
+        <section className="flex flex-col rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm font-semibold text-[#002855]">
                 Possible Placement Factors
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#4F529B]">
                 Browse and drag any factors you want into your stack.
               </p>
             </div>
           </div>
           <input
-            className="mb-3 w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            className="mb-3 w-full rounded-md border border-[#4F529B] bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8F1C]"
             placeholder="Search factors"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -309,13 +310,13 @@ export default function BuilderPage() {
           </div>
         </section>
 
-        <section className="flex flex-col rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
+        <section className="flex flex-col rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">
+              <h3 className="text-sm font-semibold text-[#002855]">
                 Your Placement Priorities
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#4F529B]">
                 Top = most important. Bottom = least important of your
                 selections.
               </p>
@@ -324,7 +325,7 @@ export default function BuilderPage() {
                   "mt-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] " +
                   (totalScore > POINTS_CAP
                     ? "bg-red-50 font-semibold text-red-700 ring-1 ring-red-200"
-                    : "bg-slate-50 text-slate-600 ring-1 ring-slate-200")
+                    : "bg-[#F4F7FB] text-[#4F529B] ring-1 ring-[#4F529B]/40")
                 }
               >
                 <span className="font-medium">Points used</span>
@@ -336,7 +337,7 @@ export default function BuilderPage() {
             <button
               type="button"
               onClick={handleReset}
-              className="text-xs font-medium text-slate-600 underline-offset-2 hover:underline"
+              className="text-xs font-medium text-[#4F529B] underline-offset-2 hover:underline"
             >
               Reset
             </button>
@@ -347,7 +348,7 @@ export default function BuilderPage() {
               items={priorityItems.map((p) => p.factorId)}
               strategy={verticalListSortingStrategy}
             >
-              <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1">
+              <div className="flex flex-col gap-2">
                 {priorityItems.length === 0 ? (
                   <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500">
                     Drag factors here to build your stack.
@@ -369,13 +370,13 @@ export default function BuilderPage() {
                     type="button"
                     onClick={handleFinalize}
                     disabled={submitting}
-                    className="inline-flex flex-1 items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex flex-1 items-center justify-center rounded-lg bg-[#002855] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-[#FF8F1C] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {submitting ? "Finalizing..." : "Finalize my stack"}
                   </button>
                   <Link
                     href="/"
-                    className="inline-flex flex-1 items-center justify-center rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-slate-50"
+                    className="inline-flex flex-1 items-center justify-center rounded-lg border border-[#002855] px-4 py-2.5 text-sm font-medium text-[#002855] transition hover:bg-[#002855] hover:text-white"
                   >
                     Back to Start
                   </Link>
@@ -389,17 +390,17 @@ export default function BuilderPage() {
           ) : null}
         </section>
 
-        <section className="flex flex-col rounded-2xl bg-white/60 p-4 text-xs shadow-sm ring-1 ring-dashed ring-slate-200">
-          <h3 className="text-sm font-semibold text-slate-900">
-            Blue Sky (no points)
+        <section className="flex flex-col rounded-2xl bg-white/70 p-4 text-xs shadow-sm ring-1 ring-dashed ring-[#4F529B]">
+          <h3 className="text-sm font-semibold text-[#002855]">
+            Honorable mentions (no points)
           </h3>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-[#4F529B]">
             Drop factors here that you like but don&apos;t want to spend points
             on. They won&apos;t count toward your 1000-point budget.
           </p>
           <div className="mt-3 space-y-1.5 overflow-y-auto pr-1">
             {honorableItems.length === 0 ? (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-[#4F529B]">
                 You can move items here from your stack or add them directly
                 from the factor list.
               </p>
@@ -407,23 +408,23 @@ export default function BuilderPage() {
               honorableItems.map((item) => (
                 <div
                   key={item.factorId}
-                  className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-1.5"
+                  className="flex items-center justify-between rounded-md border border-[#4F529B]/60 bg-white px-3 py-1.5"
                 >
-                  <span className="mr-2 text-xs text-slate-800">
+                  <span className="mr-2 text-xs text-[#333333]">
                     {item.factorName}
                   </span>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => handleMoveHonorableToStack(item.factorId)}
-                      className="text-[10px] font-medium text-accent hover:underline"
+                      className="text-[10px] font-medium text-[#002855] hover:underline"
                     >
                       Move to stack
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveHonorable(item.factorId)}
-                      className="text-[10px] font-medium text-slate-500 hover:text-slate-800"
+                      className="text-[10px] font-medium text-[#4F529B] hover:text-[#002855]"
                     >
                       Remove
                     </button>
@@ -450,7 +451,7 @@ function FactorGroup({ title, items, onAdd, onAddHonorable }: FactorGroupProps) 
 
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-[#4F529B]">
         {title}
       </h4>
       <div className="mt-2 space-y-1.5">
@@ -466,11 +467,11 @@ function FactorGroup({ title, items, onAdd, onAddHonorable }: FactorGroupProps) 
                 onAdd(factor);
               }
             }}
-            className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-xs text-slate-800 outline-none transition hover:border-accent hover:bg-accent-soft focus-visible:ring-2 focus-visible:ring-accent"
+            className="flex w-full items-center justify-between rounded-md border border-[#4F529B]/60 bg-white px-3 py-2 text-left text-xs text-[#333333] outline-none transition hover:border-[#002855] hover:bg-[#F4F7FB] focus-visible:ring-2 focus-visible:ring-[#FF8F1C]"
           >
             <span>{factor.name}</span>
             <span className="flex gap-2">
-              <span className="text-[10px] font-medium text-accent">
+              <span className="inline-flex h-8 items-center rounded-full bg-[#002855] px-3 text-[10px] font-semibold text-white whitespace-nowrap">
                 Add to stack
               </span>
               <button
@@ -479,9 +480,9 @@ function FactorGroup({ title, items, onAdd, onAddHonorable }: FactorGroupProps) 
                   e.stopPropagation();
                   onAddHonorable(factor);
                 }}
-                className="rounded border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 hover:border-accent hover:text-accent"
+                className="inline-flex h-8 items-center rounded-full border border-[#4F529B]/60 px-3 text-[10px] font-medium text-[#4F529B] whitespace-nowrap hover:border-[#002855] hover:text-[#002855]"
               >
-                Send to Blue Sky
+                Honorable mention
               </button>
             </span>
           </div>
@@ -539,9 +540,9 @@ function PriorityRow({
   const score = computeFactorScore(index + 1, item.strength);
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+    <div className="flex items-start gap-3 rounded-lg border border-[#4F529B]/60 bg-white px-3 py-2">
       <div
-        className="mt-1 cursor-grab text-xs font-semibold text-slate-500"
+        className="mt-1 cursor-grab text-xs font-semibold text-[#4F529B]"
         {...dragHandleProps}
       >
         {index + 1}
@@ -549,11 +550,11 @@ function PriorityRow({
       <div className="flex-1 space-y-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col">
-            <p className="text-xs font-medium text-slate-900">
+            <p className="text-xs font-medium text-[#002855]">
               {item.factorName}
             </p>
             {score > 0 ? (
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-[#4F529B]">
                 Score: {score} points
               </p>
             ) : null}
@@ -561,16 +562,16 @@ function PriorityRow({
           <button
             type="button"
             onClick={() => onRemove(item.factorId)}
-            className="text-[11px] font-medium text-slate-500 hover:text-slate-800"
+            className="text-[11px] font-medium text-[#4F529B] hover:text-[#002855]"
           >
             Remove
           </button>
           <button
             type="button"
             onClick={() => onMoveToHonorable(item.factorId)}
-            className="text-[11px] font-medium text-slate-500 hover:text-slate-800"
+            className="text-[11px] font-medium text-[#4F529B] hover:text-[#002855]"
           >
-            Send to Blue Sky
+            Send to Honorable mentions
           </button>
         </div>
         <div className="mt-1 grid grid-cols-2 gap-1.5 text-[11px] sm:grid-cols-5">
@@ -578,24 +579,24 @@ function PriorityRow({
             const active = item.strength === s.value;
             const baseColor =
               s.value === 1
-                ? "border-slate-200 bg-slate-50 text-slate-700"
+                ? "border-slate-200 bg-slate-50 text-[#333333]"
                 : s.value === 2
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                ? "border-[#008A60]/40 bg-[#E7F6F9] text-[#008A60]"
                 : s.value === 3
-                ? "border-sky-200 bg-sky-50 text-sky-800"
+                ? "border-[#78D5E1]/60 bg-[#E7F6F9] text-[#4F529B]"
                 : s.value === 4
-                ? "border-indigo-200 bg-indigo-50 text-indigo-800"
-                : "border-rose-200 bg-rose-50 text-rose-800";
+                ? "border-[#4F529B]/60 bg-[#F4F7FB] text-[#4F529B]"
+                : "border-[#E73C3E]/60 bg-[#FFF1F2] text-[#E73C3E]";
             const activeColor =
               s.value === 1
-                ? "border-slate-500 bg-slate-600 text-white"
+                ? "border-slate-500 bg-slate-700 text-white"
                 : s.value === 2
-                ? "border-emerald-600 bg-emerald-600 text-white"
+                ? "border-[#008A60] bg-[#008A60] text-white"
                 : s.value === 3
-                ? "border-sky-600 bg-sky-600 text-white"
+                ? "border-[#78D5E1] bg-[#78D5E1] text-white"
                 : s.value === 4
-                ? "border-indigo-600 bg-indigo-600 text-white"
-                : "border-rose-600 bg-rose-600 text-white";
+                ? "border-[#4F529B] bg-[#4F529B] text-white"
+                : "border-[#E73C3E] bg-[#E73C3E] text-white";
             return (
               <button
                 key={s.value}
@@ -605,7 +606,7 @@ function PriorityRow({
                   "rounded-md border px-2 py-1 text-left transition " +
                   (active
                     ? activeColor
-                    : baseColor + " hover:border-accent hover:bg-accent-soft")
+                    : baseColor + " hover:border-[#002855] hover:bg-[#F4F7FB]")
                 }
               >
                 {s.label}

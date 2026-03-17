@@ -10,27 +10,68 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+import { ResultsTabs } from "@/components/results/results-tabs";
+import { OverviewCards } from "@/components/results/overview-cards";
+import { FactorSummaryTable } from "@/components/results/factor-summary-table";
+import { ResponseExplorerTable } from "@/components/results/response-explorer-table";
+import { CooccurrenceTable } from "@/components/results/cooccurrence-table";
+import { ExportPanel } from "@/components/results/export-panel";
+import { ResultsFilterBar } from "@/components/results/results-filter-bar";
+import { QuerySummary } from "@/components/results/query-summary";
 
 interface FactorAggregate {
   factorId: string;
   factorName: string;
+  category: "core" | "secondary" | "blue_sky";
   selectionCount: number;
   averageRank: number | null;
   averageStrength: number | null;
-  averageScore: number | null;
-  consensus: "high" | "mixed" | "low";
+  averagePoints: number;
+  consensusLabel:
+    | "Strong consensus"
+    | "Moderate consensus"
+    | "Mixed views"
+    | "Polarizing"
+    | "Low support";
 }
 
 export default function ResultsPage() {
   const [aggregates, setAggregates] = useState<FactorAggregate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [overviewMetrics, setOverviewMetrics] = useState<any | null>(null);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [coRows, setCoRows] = useState<any[]>([]);
+  const [minSelections, setMinSelections] = useState<number>(0);
+  const [consensusFilter, setConsensusFilter] = useState<
+    "all" | FactorAggregate["consensusLabel"]
+  >("all");
+  const [sortKey, setSortKey] = useState<
+    "selectionCount" | "averageRank" | "averageStrength" | "averagePoints"
+  >("selectionCount");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [showHowToRead, setShowHowToRead] = useState(true);
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "factors" | "responses" | "query" | "cooccurrence" | "exports"
+  >("overview");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const res = await fetch("/api/results");
+        const params = new URLSearchParams();
+        if (minSelections) params.set("minSelections", String(minSelections));
+        if (consensusFilter !== "all") {
+          params.set("consensus", consensusFilter);
+        }
+        if (search) params.set("search", search);
+        params.set("sortKey", sortKey);
+        params.set("sortDirection", sortDirection);
+        const res = await fetch(
+          `/api/results/factors?${params.toString()}`
+        );
         if (!res.ok) throw new Error("Failed to load results");
         const json = (await res.json()) as { factors: FactorAggregate[] };
         if (!cancelled) {
@@ -50,6 +91,54 @@ export default function ResultsPage() {
       cancelled = true;
       clearInterval(interval);
     };
+  }, [minSelections, consensusFilter, sortKey, sortDirection, search]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOverview() {
+      try {
+        const res = await fetch("/api/results/overview");
+        if (!res.ok) throw new Error("Failed to load overview");
+        const json = (await res.json()) as { overview: any };
+        if (!cancelled) setOverviewMetrics(json.overview);
+      } catch {
+        if (!cancelled) setOverviewMetrics(null);
+      } finally {
+        if (!cancelled) setOverviewLoading(false);
+      }
+    }
+
+    loadOverview();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadResponses() {
+      try {
+        const res = await fetch("/api/results/responses");
+        if (!res.ok) throw new Error("Failed to load responses");
+        const json = (await res.json()) as { responses: any[] };
+        if (!cancelled) setResponses(json.responses);
+      } catch {
+        if (!cancelled) setResponses([]);
+      }
+    }
+
+    async function loadCooccurrence() {
+      try {
+        const res = await fetch("/api/results/cooccurrence");
+        if (!res.ok) throw new Error("Failed to load co-occurrence");
+        const json = (await res.json()) as { rows: any[] };
+        if (!cancelled) setCoRows(json.rows);
+      } catch {
+        if (!cancelled) setCoRows([]);
+      }
+    }
+
+    loadResponses();
+    loadCooccurrence();
   }, []);
 
   const mostSelected = [...aggregates]
@@ -67,35 +156,233 @@ export default function ResultsPage() {
     .slice(0, 10);
 
   const topByScore = [...aggregates]
-    .filter((f) => f.averageScore != null)
-    .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0))
+    .sort((a, b) => b.averagePoints - a.averagePoints)
     .slice(0, 10);
+
+  const sortedForTable = [...aggregates].sort((a, b) => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    const getVal = (f: FactorAggregate) => {
+      if (sortKey === "selectionCount") return f.selectionCount;
+      if (sortKey === "averageRank") return f.averageRank ?? Number.POSITIVE_INFINITY;
+      if (sortKey === "averageStrength") return f.averageStrength ?? 0;
+      if (sortKey === "averagePoints") return f.averagePoints ?? 0;
+      return 0;
+    };
+    const av = getVal(a);
+    const bv = getVal(b);
+    if (av === bv) return 0;
+    return av > bv ? dir : -dir;
+  });
+
+  const totalStacks =
+    aggregates.length === 0
+      ? 0
+      : Math.max(...aggregates.map((f) => f.selectionCount));
 
   return (
     <div className="flex h-full flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold tracking-tight">
-          Live workshop results
+        <h2 className="text-lg font-semibold tracking-tight text-[#002855]">
+          Aggregated class placement results
         </h2>
-        <p className="text-sm text-slate-600">
-          View which factors are most commonly selected, where they tend to sit
-          in priority stacks, and how strongly they are applied.
+        <p className="text-sm text-[#333333]">
+          See how participants as a group are weighting different placement
+          factors — which ones are selected most often, how high they sit in
+          stacks, how strongly they are applied, and how their points add up
+          across all finalized responses.
         </p>
+        <div className="mt-2 rounded-lg bg-[#F4F7FB] p-3 text-xs text-[#4F529B]">
+          <button
+            type="button"
+            className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#002855] underline-offset-2 hover:underline"
+            onClick={() => setShowHowToRead((v) => !v)}
+          >
+            {showHowToRead ? "Hide how to read this" : "Show how to read this"}
+          </button>
+          {showHowToRead ? (
+            <div className="space-y-1">
+              {activeTab === "overview" && (
+                <>
+                  <p>
+                    Each chart and card is based on{" "}
+                    <span className="font-semibold">finalized stacks</span>{" "}
+                    only. Higher <span className="font-semibold">Selections</span>{" "}
+                    means more people included that factor; higher{" "}
+                    <span className="font-semibold">Avg. Strength</span> means it
+                    was applied more strongly.
+                  </p>
+                  <p>
+                    <span className="font-semibold">Avg. Rank</span> reflects
+                    typical position in the stack (1 = very top), and{" "}
+                    <span className="font-semibold">Avg. Points</span> combines
+                    both rank and strength within the same points system used in
+                    the builder.
+                  </p>
+                </>
+              )}
+              {activeTab === "factors" && (
+                <>
+                  <p>
+                    This table shows one row per factor, using the same metrics
+                    as the overview. Filters and sorting above control which
+                    factors appear and how they are ordered.
+                  </p>
+                  <p>
+                    Use <span className="font-semibold">Min. selections</span>,
+                    <span className="font-semibold"> consensus</span>, and{" "}
+                    <span className="font-semibold">search</span> to focus on
+                    factors that matter for your discussion.
+                  </p>
+                </>
+              )}
+              {activeTab === "responses" && (
+                <>
+                  <p>
+                    Each row represents one anonymous finalized stack. Points and
+                    averages are computed with the same scoring model participants
+                    see in the builder.
+                  </p>
+                  <p>
+                    Use this view to understand typical stack length, total
+                    points used, and which factors most often sit at the top.
+                  </p>
+                </>
+              )}
+              {activeTab === "cooccurrence" && (
+                <>
+                  <p>
+                    Co-occurrence shows how often two factors appear in the same
+                    stack. <span className="font-semibold">Co-selected %</span>{" "}
+                    is out of all stacks, while{" "}
+                    <span className="font-semibold">Conditional % (B | A)</span>{" "}
+                    is out of stacks that include factor A.
+                  </p>
+                  <p>
+                    Use this to spot combinations that tend to travel together or
+                    rarely co-occur.
+                  </p>
+                </>
+              )}
+              {activeTab === "exports" && (
+                <>
+                  <p>
+                    Exports give you CSV files that can be opened in spreadsheets
+                    or BI tools. Each file uses human-readable headers and the
+                    same metrics shown in this console.
+                  </p>
+                </>
+              )}
+            </div>
+          ) : null}
+        </div>
       </header>
+      <ResultsTabs activeTab={activeTab} onChange={setActiveTab} />
+      <ResultsFilterBar search={search} onSearchChange={setSearch} />
+      <QuerySummary
+        text={
+          aggregates.length
+            ? `Showing ${aggregates.length} factors after filters.`
+            : ""
+        }
+      />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <section className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
-          <h3 className="text-sm font-semibold text-slate-900">
+      {activeTab === "overview" && (
+        <>
+          <OverviewCards metrics={overviewMetrics} loading={overviewLoading} />
+          <section className="mt-4 rounded-2xl bg-white/90 p-4 shadow-sm ring-1 ring-[#4F529B]/60">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-[#4F529B]">
+                Min. selections
+              </label>
+              <select
+                value={minSelections}
+                onChange={(e) => setMinSelections(Number(e.target.value))}
+                className="h-8 rounded-md border border-[#4F529B]/60 bg-white px-2 text-xs text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#FF8F1C]"
+              >
+                <option value={0}>All factors</option>
+                <option value={3}>3+ selections</option>
+                <option value={5}>5+ selections</option>
+                <option value={10}>10+ selections</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-[#4F529B]">
+                Consensus
+              </label>
+              <select
+                value={consensusFilter}
+                onChange={(e) =>
+                  setConsensusFilter(e.target.value as typeof consensusFilter)
+                }
+                className="h-8 rounded-md border border-[#4F529B]/60 bg-white px-2 text-xs text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#FF8F1C]"
+              >
+                <option value="all">All levels</option>
+                <option value="Strong consensus">Strong consensus only</option>
+                <option value="Moderate consensus">Moderate consensus only</option>
+                <option value="Mixed views">Mixed views only</option>
+                <option value="Polarizing">Polarizing only</option>
+                <option value="Low support">Low support only</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-[#4F529B]">
+                Table sort by
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortKey}
+                  onChange={(e) =>
+                    setSortKey(e.target.value as typeof sortKey)
+                  }
+                  className="h-8 rounded-md border border-[#4F529B]/60 bg-white px-2 text-xs text-[#333333] focus:outline-none focus:ring-2 focus:ring-[#FF8F1C]"
+                >
+                  <option value="selectionCount">Selections</option>
+                  <option value="averageRank">Avg. Rank</option>
+                  <option value="averageStrength">Avg. Strength</option>
+                  <option value="averagePoints">Avg. Points</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSortDirection((d) => (d === "asc" ? "desc" : "asc"))
+                  }
+                  className="inline-flex h-8 items-center rounded-md border border-[#4F529B]/60 px-2 text-[11px] font-medium text-[#4F529B] hover:border-[#002855] hover:text-[#002855]"
+                >
+                  {sortDirection === "asc" ? "Asc" : "Desc"}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="text-[11px] text-[#4F529B]">
+            {totalStacks > 0 ? (
+              <span>
+                Up to{" "}
+                <span className="font-semibold">{totalStacks}</span> finalized
+                stacks contributing per factor.
+              </span>
+            ) : (
+              <span>Waiting for finalized stacks.</span>
+            )}
+          </div>
+        </div>
+          </section>
+
+          <div className="grid gap-6 md:grid-cols-2">
+        <section className="rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
+          <h3 className="text-sm font-semibold text-[#002855]">
             Most Selected Factors
           </h3>
-          <p className="mb-3 text-xs text-slate-500">
-            Factors ranked by how often they appear in finalized stacks.
+          <p className="mb-3 text-xs text-[#4F529B]">
+            Factors ranked by how often they appear in finalized stacks across
+            all participants.
           </p>
           <div className="h-64">
             {loading ? (
-              <p className="text-xs text-slate-500">Loading…</p>
+              <p className="text-xs text-[#4F529B]">Loading…</p>
             ) : mostSelected.length === 0 ? (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#4F529B]">
                 Results will appear as participants finalize.
               </p>
             ) : (
@@ -122,18 +409,19 @@ export default function ResultsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
-          <h3 className="text-sm font-semibold text-slate-900">
+        <section className="rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
+          <h3 className="text-sm font-semibold text-[#002855]">
             Strongest Applied Factors
           </h3>
-          <p className="mb-3 text-xs text-slate-500">
-            Factors ordered by average strength value.
+          <p className="mb-3 text-xs text-[#4F529B]">
+            Factors ordered by average strength value across all finalized
+            stacks.
           </p>
           <div className="h-64">
             {loading ? (
-              <p className="text-xs text-slate-500">Loading…</p>
+              <p className="text-xs text-[#4F529B]">Loading…</p>
             ) : strongestApplied.length === 0 ? (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#4F529B]">
                 Results will appear as participants finalize.
               </p>
             ) : (
@@ -159,21 +447,21 @@ export default function ResultsPage() {
             )}
           </div>
         </section>
-      </div>
+          </div>
 
-      <section className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
-        <h3 className="text-sm font-semibold text-slate-900">
+          <section className="rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
+        <h3 className="text-sm font-semibold text-[#002855]">
           Top Factors by Average Points
         </h3>
-        <p className="mb-3 text-xs text-slate-500">
+        <p className="mb-3 text-xs text-[#4F529B]">
           Combines how high factors sit in stacks and how strongly they are
-          applied.
+          applied to create an overall points score per factor.
         </p>
         <div className="h-64">
           {loading ? (
-            <p className="text-xs text-slate-500">Loading…</p>
+            <p className="text-xs text-[#4F529B]">Loading…</p>
           ) : topByScore.length === 0 ? (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#4F529B]">
               Results will appear as participants finalize.
             </p>
           ) : (
@@ -193,71 +481,54 @@ export default function ResultsPage() {
                 />
                 <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
-                <Bar dataKey="averageScore" fill="#7c3aed" />
+                <Bar dataKey="averagePoints" fill="#7c3aed" />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
-      </section>
+          </section>
+        </>
+      )}
 
-      <section className="rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-slate-200">
-        <h3 className="text-sm font-semibold text-slate-900">
-          Consensus Table
-        </h3>
-        <p className="mb-3 text-xs text-slate-500">
-          For each factor, see how often it is selected and how strongly it
-          tends to be applied.
-        </p>
-        <div className="max-h-80 overflow-y-auto">
-          <table className="min-w-full border-separate border-spacing-y-1 text-left text-xs">
-            <thead className="text-[11px] uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-2 py-1 font-medium">Factor</th>
-                <th className="px-2 py-1 font-medium text-right">
-                  Selections
-                </th>
-                <th className="px-2 py-1 font-medium text-right">
-                  Avg. Rank
-                </th>
-                <th className="px-2 py-1 font-medium text-right">
-                  Avg. Strength
-                </th>
-                <th className="px-2 py-1 font-medium text-right">
-                  Avg. Points
-                </th>
-                <th className="px-2 py-1 font-medium text-right">
-                  Consensus
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {aggregates.map((f) => (
-                <tr
-                  key={f.factorId}
-                  className="bg-white text-slate-800 shadow-sm ring-1 ring-slate-200"
-                >
-                  <td className="px-2 py-1.5">{f.factorName}</td>
-                  <td className="px-2 py-1.5 text-right">
-                    {f.selectionCount}
-                  </td>
-                  <td className="px-2 py-1.5 text-right">
-                    {f.averageRank ?? "—"}
-                  </td>
-                  <td className="px-2 py-1.5 text-right">
-                    {f.averageStrength ?? "—"}
-                  </td>
-                  <td className="px-2 py-1.5 text-right">
-                    {f.averageScore ? f.averageScore.toFixed(1) : "—"}
-                  </td>
-                  <td className="px-2 py-1.5 text-right capitalize">
-                    {f.consensus}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {activeTab === "factors" && (
+        <section className="rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
+          <h3 className="text-sm font-semibold text-[#002855]">
+            Factor analysis
+          </h3>
+          <p className="mb-3 text-xs text-[#4F529B]">
+            Detailed view of factor metrics with the same filters and sorting
+            applied as above.
+          </p>
+          <FactorSummaryTable rows={sortedForTable} />
+        </section>
+      )}
+
+      {activeTab === "responses" && (
+        <section className="rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
+          <h3 className="text-sm font-semibold text-[#002855]">
+            Response explorer
+          </h3>
+          <p className="mb-3 text-xs text-[#4F529B]">
+            Anonymous view of each finalized stack, including number of
+            factors, top factors, and total points used.
+          </p>
+          <ResponseExplorerTable rows={responses} />
+        </section>
+      )}
+
+      {activeTab === "cooccurrence" && (
+        <section className="rounded-2xl bg-white/90 p-4 shadow-sm ring-2 ring-[#002855]">
+          <h3 className="text-sm font-semibold text-[#002855]">
+            Co-occurrence
+          </h3>
+          <p className="mb-3 text-xs text-[#4F529B]">
+            See which factors tend to appear together within the same stacks.
+          </p>
+          <CooccurrenceTable rows={coRows} />
+        </section>
+      )}
+
+      {activeTab === "exports" && <ExportPanel />}
     </div>
   );
 }
